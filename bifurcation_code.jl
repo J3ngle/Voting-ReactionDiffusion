@@ -3,12 +3,12 @@ using Plots, LinearAlgebra, Roots
 
 # Parameter setup
 c_vals = range(0, 1, length=10000)  # Range for c
-z = 0.5;  # Set z (adjust as needed)
+z = 0.0;  # Set z (adjust as needed)
 v_equilibrium = Float64[]  # Store equilibrium values
 c_equilibrium = Float64[]  # Store corresponding c values
 stability = Int[]  # 1: stable, 0: unstable, 2: center points
 
-c_comp = range(0, 1 - z - g, length=100)  # Range of c values
+c_comp = range(0, 1 - z, length=100)  # Range of c values
 
 # Function to solve for equilibrium points v*
 function equilibrium_eq(v, c, g, z)
@@ -20,12 +20,11 @@ function jac(v, c, g)
     denom = 2v^2 - 2v + 1
     v_c = v^2 / denom
     v_g = (1 - v)^2 / denom
-    v_z = 1  
 
-    J11 = -v^2 + 2c * (1 - v_c) * v - (1 - v)^2 + 2c * v_c * (1 - v)
-    J12 = 2g * ((1 - v_c) * v - v_c * (1 - v))
-    J21 = 2c * ((1 - v_g) * (1 - v) - v * v_g)
-    J22 = -(1 - v)^2 + (1 - v_g) * 2g * (1 - v) - v^2 - 2v_g * g * v
+    J11 = -v^2 + 2*c*(1-v_c)*v - (1-v)^2 + 2*c*v_c*(1-v)
+    J12 = 2*g*((1-v_c)*v + v_c*(1-v))
+    J21 = -2*c*((1-v_g)*(1-v) + v_g*v)
+    J22 = -(1-v)^2 - 2*g*(1-v_g)*(1-v) - v^2 - 2*g*v_g*v
 
     return [J11 J12; J21 J22]
 end
