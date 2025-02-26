@@ -3,7 +3,7 @@ using Plots, LinearAlgebra, Roots
 
 # Parameter setup
 c_vals = range(0, 1, length=10000)  # Range for c
-z = 0.0;  # Set z (adjust as needed)
+z = 0.3;  # Set z (adjust as needed)
 v_equilibrium = Float64[]  # Store equilibrium values
 c_equilibrium = Float64[]  # Store corresponding c values
 stability = Int[]  # 1: stable, 0: unstable, 2: center points
@@ -72,4 +72,4 @@ ylabel!("v")
 title!("Bifurcation Diagram (g=1-c-z, z = $z)")
 plot!(legend=:outertopright)  # Display the plot interactively
 # Save the plot as a PDF
-#savefig("bifurcation_diagram_z($z)_g(1-c-z).pdf")
+savefig("bifurcation_diagram_z($z)_g(1-c-z).pdf")
