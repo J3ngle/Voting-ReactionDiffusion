@@ -72,4 +72,4 @@ ylabel!("v")
 title!("Bifurcation Diagram (g=1-c-z, z = $z)")
 plot!(legend=:outertopright)  # Display the plot interactively
 # Save the plot as a PDF
-savefig("bifurcation_diagram_z($z)_g(1-c-z).pdf")
+#savefig("bifurcation_diagram_z($z)_g(1-c-z).pdf")
