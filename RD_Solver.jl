@@ -1,14 +1,14 @@
 using DifferentialEquations, Plots, LinearAlgebra, Roots, Statistics, Sundials
 @time begin
-# Parameters
-D = 0.1 #Diffusion Coefficient
+# Parameters for comp.
+D = 1 #Diffusion Coefficient
 L = 10 #Discretization steps 
 Nx, Ny = 10, 10 #Number of discretization points in either direction
 dx = L / (Nx - 1) #Chop up x
 dy = L / (Ny - 1) #Chop up y
 x = range(0, L, length=Nx) # X size
 y = range(0, L, length=Ny) # y size 
-tfinal=10 #Final time
+tfinal=1 #Final time
 X, Y = [xi for xi in x, yi in y], [yi for xi in x, yi in y]
 
 # Gaussian shell
@@ -21,7 +21,7 @@ c₀ = rand(N,N) #gaussian(X, Y, 0.5, 0.5, var) #initial distribution for Consen
 g₀ = rand(N,N) #gaussian(X, Y, 0.5, 0.4, var) #initial distribution for Gridlockers
 z1₀ = rand(N,N) #gaussian(X, Y, 0.5, 0.5, var) #initial distribution for Zealots Party 1
 z2₀ = rand(N,N) #gaussian(X, Y, 0.5, 0.5, var) #initial distribution for Zealots Party 2
-τ=c₀+g₀+z1₀
+τ= c₀+g₀+z1₀
 c₀=c₀ ./ τ
 g₀=g₀ ./ τ
 z1₀=z1₀ ./ τ
@@ -63,7 +63,7 @@ Fitness_z2(v) = 1-(v).^2 #Strategy fitness for Zealots party 2
 #Set up equilibrium equation
 
 function equilibrium_eq(v, c, g, z)
-    return v^2 * c + g * (1 - v)^2 + (z - v) * (2v^2 - 2v + 1)
+    return v.^2 .* c .+ g .* (1 .- v).^2 .+ (z .- v) .* (2 .* v.^2 - 2 .* v .+ 1)
 end
 
 # Initial condition
@@ -83,37 +83,39 @@ function pdes!(du, u, p, t)
     du_c = D * laplacian(c) + (c .* g .* (F_c .- F_g) + c .* z .* (F_c .- F_z))
     du_g = D * laplacian(g) + (g .* c .* (F_g .- F_c) + g .* z .* (F_g .- F_z))
     du_z = D * laplacian(z) + (z .* c .* (F_z .- F_c) + z .* g .* (F_z .- F_g))
-    v_c = ((1 .-v_c).*v.^2+v_c.*(1 .-v).^2)
-    v_g = (-(v_g).*v.^2+(1 .-v_g).*(1 .-v).^2)
+    f(v) =equilibrium_eq(v, c, g, z)
+    denominator = 2 .* v.^2 .- 2 .* v .+ 1
+    v_c = f(v).^2 ./ denominator #((1 .-v_c).*v.^2+v_c.*(1 .-v).^2)
+    v_g = (1 .- f(v)).^2 ./ denominator #(1-(v_g).*v.^2+(1 .-v_g).*(1 .-v).^2)
     du .= pack(du_c, du_g, du_z, v_c, v_g)
 end
-# # Solve the PDE
+# # # Solve the PDE
 # prob = ODEProblem(pdes!, u0, tspan)
 # sol = solve(prob, Rodas5(), abstol=1e-6,saveat=tfinal)
 
 end
 
-function dae_residual!(res, du, u, p, t)
+function DAE!(res, du, u, p, t)
     c, g, z, v_c, v_g = unpack(u)
-    du_c, du_g, du_z, _, _ = unpack(du)
+    du_c, du_g, du_z, du_v_c, du_v_g = unpack(du)
     v = c .* v_c + g .* v_g + z
 
     F_c = Fitness_c(v)
     F_g = Fitness_g(v)
     F_z = Fitness_z1(v)
 
-    # Differential equations
-    res_c = du_c - (D * laplacian(c) + (c .* g .* (F_c .- F_g) + c .* z .* (F_c .- F_z)))
-    res_g = du_g - (D * laplacian(g) + (g .* c .* (F_g .- F_c) + g .* z .* (F_g .- F_z)))
-    res_z = du_z - (D * laplacian(z) + (z .* c .* (F_z .- F_c) + z .* g .* (F_z .- F_g)))
+    # Partial Differential equations
+    du_c = D * laplacian(c) + (c .* g .* (F_c .- F_g) + c .* z .* (F_c .- F_z)) 
+    du_g = D * laplacian(g) + (g .* c .* (F_g .- F_c) + g .* z .* (F_g .- F_z)) 
+    du_z = D * laplacian(z) + (z .* c .* (F_z .- F_c) + z .* g .* (F_z .- F_g))
     # Algebraic equations
-    res_v_c = v_c .- (v.^2 ./ (2 .* v.^2 .- 2 .* v .+ 1))
-    res_v_g = v_g .- ((1 .- v).^2 ./ (2 .* v.^2 .- 2 .* v .+ 1))
+    res_v_c =  v_c-(v.^2 ./ (2 .* v.^2 .- 2 .* v .+ 1))
+    res_v_g = v_g-(1 .- v).^2 ./ (2 .* v.^2 .- 2 .* v .+ 1)
 
-    res .= pack(res_c, res_g, res_z, res_v_c, res_v_g)
+    res .= pack(du_c, du_g, du_z, res_v_c, res_v_g)
 end
 
-# Mass matrix: 1 for c,g,z (differential), 0 for v_c,v_g (algebraic)
+# Mass matrix: 1 for c,g,z , 0 for v_c,v_g 
 function mass_matrix(u, p, t)
     N = Nx * Ny
     Diagonal(vcat(ones(3N), zeros(2N)))
@@ -122,11 +124,16 @@ end
 u0 = pack(c₀, g₀, z1₀, v_c₀, v_g₀)
 du0 = zeros(size(u0))
 tspan = (0.0, tfinal)
-
+# Resize to match the number of variables
 N = Nx * Ny
+# Store our differential variables
 differential_vars = vcat(trues(3N), falses(2N))
+## Solve the DAE system
+# f = ODEFunction(system)
+# prob = ODEProblem(system, u0, tspan, mass_matrix = mass_matrix)
+# sol = solve(prob, Rodas5(), abstol=1e-6,saveat=tfinal)
 
-prob = DAEProblem(dae_residual!, u0, du0, tspan, 
+prob = DAEProblem(DAE!, u0, du0, tspan, 
                   mass_matrix=mass_matrix, 
                   differential_vars=differential_vars)
 sol = solve(prob, IDA(), saveat=tfinal, abstol=1e-6)
@@ -156,7 +163,6 @@ plot!(time_steps, average_z, label="Mean Zealots on entire Domain",lw=3)
 plot!(time_steps, average_v, label="Mean Vote on entire Domain",lw=3)
 display(time_series)
 #savefig("TS_D_0.1_Finaltime=$tfinal.pdf")
-end
 #savefig("Heatmap_Periodic_D_0.1_Finaltime=$tfinal.pdf")
 
 #Sanity check: Plot the average v_c and v_g 
