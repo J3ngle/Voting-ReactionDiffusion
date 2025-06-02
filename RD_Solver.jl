@@ -8,7 +8,7 @@ dx = L / (Nx - 1) #Chop up x
 dy = L / (Ny - 1) #Chop up y
 x = range(0, L, length=Nx) # X size
 y = range(0, L, length=Ny) # y size 
-tfinal=1 #Final time
+tfinal=100.0 #Final time
 X, Y = [xi for xi in x, yi in y], [yi for xi in x, yi in y]
 
 # Gaussian shell
@@ -57,9 +57,9 @@ end
 
 # Fitness functions
 Fitness_c(v) = 4 * (v .- 0.5).^2 #Strategy fitness for Consensus makers
-Fitness_g(v) = 1 .- 4 * (v .- 0.5).^2 #Strategy fitness for Gridlockers
+Fitness_g(v) = 1 .- 4*(v .- 0.5).^2 #Strategy fitness for Gridlockers
 Fitness_z1(v) = (v).^2 #Strategy fitness for Zealots party 1
-Fitness_z2(v) = 1-(v).^2 #Strategy fitness for Zealots party 2
+Fitness_z2(v) = 1 .- (v).^2 #Strategy fitness for Zealots party 2
 #Set up equilibrium equation
 
 function equilibrium_eq(v, c, g, z)
@@ -69,7 +69,7 @@ end
 # Initial condition
 u0 = pack(c₀, g₀, z1₀, v_c₀, v_g₀)
 du0 = zeros(size(u0))
-tspan = (0.0, tfinal)
+time = (0.0, tfinal)
 
 # Define the PDE system using v as a fixed spatial array
 function pdes!(du, u, p, t)
@@ -95,7 +95,7 @@ end
 
 end
 
-function DAE!(res, du, u, p, t)
+function DAE!(du, u, p, t)
     c, g, z, v_c, v_g = unpack(u)
     du_c, du_g, du_z, du_v_c, du_v_g = unpack(du)
     v = c .* v_c + g .* v_g + z
@@ -109,21 +109,22 @@ function DAE!(res, du, u, p, t)
     du_g = D * laplacian(g) + (g .* c .* (F_g .- F_c) + g .* z .* (F_g .- F_z)) 
     du_z = D * laplacian(z) + (z .* c .* (F_z .- F_c) + z .* g .* (F_z .- F_g))
     # Algebraic equations
-    res_v_c =  v_c-(v.^2 ./ (2 .* v.^2 .- 2 .* v .+ 1))
-    res_v_g = v_g-(1 .- v).^2 ./ (2 .* v.^2 .- 2 .* v .+ 1)
-
-    res .= pack(du_c, du_g, du_z, res_v_c, res_v_g)
+    du_v_c = (1 .- v_c).*v.^2 .- v_c*(1 .- v).^2
+    du_v_g = (1 .- v_g).*(1 .- v).^2 .- v_g.*v.^2
+    # res .= pack(du_c, du_g, du_z, res_v_c, res_v_g)
 end
 
 # Mass matrix: 1 for c,g,z , 0 for v_c,v_g 
-function mass_matrix(u, p, t)
-    N = Nx * Ny
-    Diagonal(vcat(ones(3N), zeros(2N)))
-end
+# function mass_matrix(u, p, t)
+ M = diagm(vcat(ones(3*Nx*Ny), zeros(2*Nx*Ny)))
+# M = diagm(vcat(ones(5*Nx*Ny)))
+
+
+# end
 
 u0 = pack(c₀, g₀, z1₀, v_c₀, v_g₀)
 du0 = zeros(size(u0))
-tspan = (0.0, tfinal)
+time = (0.0, tfinal)
 # Resize to match the number of variables
 N = Nx * Ny
 # Store our differential variables
@@ -133,10 +134,9 @@ differential_vars = vcat(trues(3N), falses(2N))
 # prob = ODEProblem(system, u0, tspan, mass_matrix = mass_matrix)
 # sol = solve(prob, Rodas5(), abstol=1e-6,saveat=tfinal)
 
-prob = DAEProblem(DAE!, u0, du0, tspan, 
-                  mass_matrix=mass_matrix, 
-                  differential_vars=differential_vars)
-sol = solve(prob, IDA(), saveat=tfinal, abstol=1e-6)
+DAEfunc = ODEFunction(DAE!, mass_matrix = M)
+prob = ODEProblem(DAEfunc, u0, time)
+sol = solve(prob, RadauIIA5(), saveat=1)
 
 #Plot results at final time 
 c, g, z, v_c, v_g = unpack(sol[end]) #computations from the end of the simulation, we could pull these at any other times
