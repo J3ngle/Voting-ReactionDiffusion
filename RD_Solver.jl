@@ -3,7 +3,7 @@ using DifferentialEquations, Plots, LinearAlgebra, Roots, Statistics, Sundials
 # Parameters for comp.
 D = 1 #Diffusion Coefficient
 L = 10 #Discretization steps 
-Nx, Ny = 10, 10 #Number of discretization points in either direction
+Nx, Ny = 4, 4 #Number of discretization points in either direction
 dx = L / (Nx - 1) #Chop up x
 dy = L / (Ny - 1) #Chop up y
 x = range(0, L, length=Nx) # X size
@@ -97,7 +97,7 @@ end
 
 function DAE!(du, u, p, t)
     c, g, z, v_c, v_g = unpack(u)
-    du_c, du_g, du_z, du_v_c, du_v_g = unpack(du)
+    # du_c, du_g, du_z, du_v_c, du_v_g = unpack(du)
     v = c .* v_c + g .* v_g + z
 
     F_c = Fitness_c(v)
@@ -111,7 +111,7 @@ function DAE!(du, u, p, t)
     # Algebraic equations
     du_v_c = (1 .- v_c).*v.^2 .- v_c*(1 .- v).^2
     du_v_g = (1 .- v_g).*(1 .- v).^2 .- v_g.*v.^2
-    # res .= pack(du_c, du_g, du_z, res_v_c, res_v_g)
+    du .= pack(du_c, du_g, du_z, du_v_c, du_v_g)
 end
 
 # Mass matrix: 1 for c,g,z , 0 for v_c,v_g 
@@ -136,7 +136,7 @@ differential_vars = vcat(trues(3N), falses(2N))
 
 DAEfunc = ODEFunction(DAE!, mass_matrix = M)
 prob = ODEProblem(DAEfunc, u0, time)
-sol = solve(prob, RadauIIA5(), saveat=1)
+sol = solve(prob, RadauIIA5(), saveat=1, reltol=1e-10, abstol=1e-10)
 
 #Plot results at final time 
 c, g, z, v_c, v_g = unpack(sol[end]) #computations from the end of the simulation, we could pull these at any other times
