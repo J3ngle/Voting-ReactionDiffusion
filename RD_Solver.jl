@@ -1,14 +1,14 @@
 using DifferentialEquations, Plots, LinearAlgebra, Roots, Statistics, Sundials
 @time begin
 # Parameters for comp.
-D = 1 #Diffusion Coefficient
-L = 10 #Discretization steps 
-Nx, Ny = 4, 4 #Number of discretization points in either direction
-dx = L / (Nx - 1) #Chop up x
-dy = L / (Ny - 1) #Chop up y
+D = 0.01 #Diffusion Coefficient
+L = 1 #Length of domain 
+Nx, Ny = 20, 20 #Number of discretization points in either direction
+dx = L / (Nx - 1) #Chop up x equally
+dy = L / (Ny - 1) #Chop up y equally
 x = range(0, L, length=Nx) # X size
 y = range(0, L, length=Ny) # y size 
-tfinal=100.0 #Final time
+tfinal=5.0 #Final time
 X, Y = [xi for xi in x, yi in y], [yi for xi in x, yi in y]
 
 # Gaussian shell
@@ -18,15 +18,22 @@ end
 #Initial distribution/ conditions
 N=Nx
 c₀ = rand(N,N) #gaussian(X, Y, 0.5, 0.5, var) #initial distribution for Consensus makers
+#c₀ = clamp.(c₀, 0, 1) #Control the bounds of initial conditions
 g₀ = rand(N,N) #gaussian(X, Y, 0.5, 0.4, var) #initial distribution for Gridlockers
+g₀ = clamp.(g₀, 0, .1) #Control the bounds of initial conditions, we can change these around to see what will happen
 z1₀ = rand(N,N) #gaussian(X, Y, 0.5, 0.5, var) #initial distribution for Zealots Party 1
 z2₀ = rand(N,N) #gaussian(X, Y, 0.5, 0.5, var) #initial distribution for Zealots Party 2
 τ= c₀+g₀+z1₀
 c₀=c₀ ./ τ
 g₀=g₀ ./ τ
 z1₀=z1₀ ./ τ
-v_c₀= rand(N,N)
-v_g₀= rand(N,N)
+v_0 = c₀ + g₀ + z1₀ #Initial vote on the domain
+v_c₀= v_0.^2 ./(2*v_0.^2 .- 2*v_0 .+ 1) #Initial vote for Consensus makers
+v_g₀= (1 .- v_0).^2 ./(2*v_0.^2 .- 2*v_0 .+ 1) #Initial vote for Gridlockers
+
+# Pack and unpack functions for the state vector
+# This is used to convert the 2D arrays into a 1D vector for the ODE solver
+# and to convert it back to the 2D arrays after the ODE solver has computed the solution
 function pack(c, g, z, v_c, v_g)
     return vcat(vec(c), vec(g), vec(z), vec(v_c), vec(v_g))
 end
@@ -54,6 +61,36 @@ function laplacian(U)
     end
     return L
 end
+#Construct gradient for later use
+function Gradient(u, dx, dy)
+    # Get size of the field
+    Nx, Ny = size(u)
+    #  Set up blank arrays
+    grad_x = zeros(Nx, Ny)
+    grad_y = zeros(Nx, Ny) 
+    # Compute gradient in x direction using central difference
+    for i in 2:Nx-1
+        for j in 1:Ny
+            grad_x[i, j] = (u[i+1, j] - u[i-1, j]) / (2dx)
+        end
+    end
+    # Forward/backward differences at boundaries (No end points)
+    grad_x[1, :] = (u[2, :] - u[1, :]) / dx
+    grad_x[end, :] = (u[end, :] - u[end-1, :]) / dx
+    # Compute gradient in y direction using central difference
+    for i in 1:Nx
+        for j in 2:Ny-1
+            grad_y[i, j] = (u[i, j+1] - u[i, j-1]) / (2dy)
+        end
+    end
+    # Forward/backward differences at boundaries (No end points)
+    grad_y[:, 1] = (u[:, 2] - u[:, 1]) / dy
+    grad_y[:, end] = (u[:, end] - u[:, end-1]) / dy
+    #Store in both x and y directions
+    return [grad_x, grad_y]
+end
+
+
 
 # Fitness functions
 Fitness_c(v) = 4 * (v .- 0.5).^2 #Strategy fitness for Consensus makers
@@ -62,6 +99,7 @@ Fitness_z1(v) = (v).^2 #Strategy fitness for Zealots party 1
 Fitness_z2(v) = 1 .- (v).^2 #Strategy fitness for Zealots party 2
 #Set up equilibrium equation
 
+#not used 
 function equilibrium_eq(v, c, g, z)
     return v.^2 .* c .+ g .* (1 .- v).^2 .+ (z .- v) .* (2 .* v.^2 - 2 .* v .+ 1)
 end
@@ -98,7 +136,7 @@ end
 function DAE!(du, u, p, t)
     c, g, z, v_c, v_g = unpack(u)
     # du_c, du_g, du_z, du_v_c, du_v_g = unpack(du)
-    v = c .* v_c + g .* v_g + z
+    v = c .* v_c .+ g .* v_g .+ z
 
     F_c = Fitness_c(v)
     F_g = Fitness_g(v)
@@ -109,44 +147,36 @@ function DAE!(du, u, p, t)
     du_g = D * laplacian(g) + (g .* c .* (F_g .- F_c) + g .* z .* (F_g .- F_z)) 
     du_z = D * laplacian(z) + (z .* c .* (F_z .- F_c) + z .* g .* (F_z .- F_g))
     # Algebraic equations
-    du_v_c = (1 .- v_c).*v.^2 .- v_c*(1 .- v).^2
-    du_v_g = (1 .- v_g).*(1 .- v).^2 .- v_g.*v.^2
+    du_v_c = (1 .- v_c) .* v.^2 .- v_c .* (1 .- v).^2
+    du_v_g = (1 .- v_g) .* (1 .- v).^2 .- v_g .* v.^2
+    # du_v_c = clamp.(du_v_c, 0, 1)
+    # du_v_g = clamp.(du_v_g, 0, 1)
     du .= pack(du_c, du_g, du_z, du_v_c, du_v_g)
 end
 
 # Mass matrix: 1 for c,g,z , 0 for v_c,v_g 
 # function mass_matrix(u, p, t)
- M = diagm(vcat(ones(3*Nx*Ny), zeros(2*Nx*Ny)))
-# M = diagm(vcat(ones(5*Nx*Ny)))
-
-
-# end
+#M = diagm(vcat(ones(3*Nx*Ny), zeros(2*Nx*Ny)))
+M = diagm(vcat(ones(5*Nx*Ny)))
 
 u0 = pack(c₀, g₀, z1₀, v_c₀, v_g₀)
 du0 = zeros(size(u0))
 time = (0.0, tfinal)
-# Resize to match the number of variables
-N = Nx * Ny
-# Store our differential variables
-differential_vars = vcat(trues(3N), falses(2N))
-## Solve the DAE system
-# f = ODEFunction(system)
-# prob = ODEProblem(system, u0, tspan, mass_matrix = mass_matrix)
-# sol = solve(prob, Rodas5(), abstol=1e-6,saveat=tfinal)
 
 DAEfunc = ODEFunction(DAE!, mass_matrix = M)
 prob = ODEProblem(DAEfunc, u0, time)
-sol = solve(prob, RadauIIA5(), saveat=1, reltol=1e-10, abstol=1e-10)
+sol = solve(prob, RadauIIA5(), saveat=tfinal, reltol=1e-10, abstol=1e-10)
 
 #Plot results at final time 
 c, g, z, v_c, v_g = unpack(sol[end]) #computations from the end of the simulation, we could pull these at any other times
-v = c .* v_c + g .* v_g + z #Compute v at the end
-p1 = heatmap(x, y, c', title="c(x,y)", xlabel="x", ylabel="y", aspect_ratio=1)
-p2 = heatmap(x, y, g', title="g(x,y)", xlabel="x", ylabel="y", aspect_ratio=1)
-p3 = heatmap(x, y, z', title="z(x,y)", xlabel="x", ylabel="y", aspect_ratio=1)
-p4 = heatmap(x, y, v', title="v(x,y)", xlabel="x", ylabel="y", aspect_ratio=1)
+v = c .* v_c .+ g .* v_g .+ z #Compute v at the end
+p1 = heatmap(x, y, c', title="c(x,y)", xlabel="x", ylabel="y", aspect_ratio=1,colorbar_tick_format=:short)
+p2 = heatmap(x, y, g', title="g(x,y)", xlabel="x", ylabel="y", aspect_ratio=1,colorbar_tick_format=:short)
+p3 = heatmap(x, y, z', title="z(x,y)", xlabel="x", ylabel="y", aspect_ratio=1,colorbar_tick_format=:short)
+p4 = heatmap(x, y, v', title="v(x,y)", xlabel="x", ylabel="y", aspect_ratio=1,colorbar_tick_format=:short)
 heatmap_figure = plot(p1, p2, p3, p4, layout=(1,4), size=(1600, 400), plot_title="Solutions at final time $tfinal, D=$D ")
 display(heatmap_figure)
+#savefig("Heatmap_Periodic_D_0.01_Finaltime=$tfinal.pdf")
 
 # Compute averages over the domain at each time step
 time_steps = sol.t
@@ -162,15 +192,21 @@ plot!(time_steps, average_g, label="Mean Gridlockers on entire Domain",lw=3)
 plot!(time_steps, average_z, label="Mean Zealots on entire Domain",lw=3)
 plot!(time_steps, average_v, label="Mean Vote on entire Domain",lw=3)
 display(time_series)
-#savefig("TS_D_0.1_Finaltime=$tfinal.pdf")
-#savefig("Heatmap_Periodic_D_0.1_Finaltime=$tfinal.pdf")
+#savefig("TS_D_0.01_Finaltime=$tfinal.pdf")
+
 
 #Sanity check: Plot the average v_c and v_g 
 mean_vc = [mean(unpack(sol[i])[4]) for i in 1:length(time_steps)]
 mean_vg = [mean(unpack(sol[i])[5]) for i in 1:length(time_steps)]
-
-plot(time_steps, mean_vc, label="Mean v_c", xlabel="Time", ylabel="Mean", lw=3, legend=:topright, title="Mean v_c and v_g over time")
+min_vc = [minimum(unpack(sol[i])[4]) for i in 1:length(time_steps)]
+min_vg = [minimum(unpack(sol[i])[5]) for i in 1:length(time_steps)]
+max_vc = [maximum(unpack(sol[i])[4]) for i in 1:length(time_steps)]
+max_vg = [maximum(unpack(sol[i])[5]) for i in 1:length(time_steps)]
+SanityCheck=plot(time_steps, mean_vc, label="Mean v_c", xlabel="Time", ylabel="Mean", lw=3, legend=:topright, title="Mean v_c and v_g over time, Sanity Check")
 plot!(time_steps, mean_vg, label="Mean v_g", lw=3)
-display(current())
-
-
+plot!(time_steps, min_vc, label="Min v_c", lw=3)
+plot!(time_steps, min_vg, label="Min v_g", lw=3)
+plot!(time_steps, max_vc, label="Max v_c", lw=3)
+plot!(time_steps, max_vg, label="Max v_g", lw=3)
+display(SanityCheck)
+#savefig("MeanTS(SanityCheck)_D_0.01_Finaltime=$tfinal.pdf")
