@@ -1,9 +1,9 @@
 using DifferentialEquations, Plots, LinearAlgebra, Roots, Statistics, Sundials
 @time begin
 # Parameters for comp.
-D = 0.01 #Diffusion Coefficient
-L = 1 #Length of domain 
-Nx, Ny = 20, 20 #Number of discretization points in either direction
+D = 0.1 #Diffusion Coefficient
+L = 10 #Length of domain 
+Nx, Ny = 15, 15 #Number of discretization points in either direction
 dx = L / (Nx - 1) #Chop up x equally
 dy = L / (Ny - 1) #Chop up y equally
 x = range(0, L, length=Nx) # X size
@@ -20,10 +20,10 @@ N=Nx
 c₀ = rand(N,N) #gaussian(X, Y, 0.5, 0.5, var) #initial distribution for Consensus makers
 #c₀ = clamp.(c₀, 0, 1) #Control the bounds of initial conditions
 g₀ = rand(N,N) #gaussian(X, Y, 0.5, 0.4, var) #initial distribution for Gridlockers
-g₀ = clamp.(g₀, 0, .1) #Control the bounds of initial conditions, we can change these around to see what will happen
+#g₀ = clamp.(g₀, 0, 0.2) #Control the bounds of initial conditions, we can change these around to see what will happen
 z1₀ = rand(N,N) #gaussian(X, Y, 0.5, 0.5, var) #initial distribution for Zealots Party 1
 z2₀ = rand(N,N) #gaussian(X, Y, 0.5, 0.5, var) #initial distribution for Zealots Party 2
-τ= c₀+g₀+z1₀
+τ= c₀+g₀+z1₀+z2₀ 
 c₀=c₀ ./ τ
 g₀=g₀ ./ τ
 z1₀=z1₀ ./ τ
@@ -165,7 +165,7 @@ time = (0.0, tfinal)
 
 DAEfunc = ODEFunction(DAE!, mass_matrix = M)
 prob = ODEProblem(DAEfunc, u0, time)
-sol = solve(prob, RadauIIA5(), saveat=tfinal, reltol=1e-10, abstol=1e-10)
+sol = solve(prob, RadauIIA5(), saveat=0.01, reltol=1e-10, abstol=1e-10)
 
 #Plot results at final time 
 c, g, z, v_c, v_g = unpack(sol[end]) #computations from the end of the simulation, we could pull these at any other times
@@ -176,7 +176,7 @@ p3 = heatmap(x, y, z', title="z(x,y)", xlabel="x", ylabel="y", aspect_ratio=1,co
 p4 = heatmap(x, y, v', title="v(x,y)", xlabel="x", ylabel="y", aspect_ratio=1,colorbar_tick_format=:short)
 heatmap_figure = plot(p1, p2, p3, p4, layout=(1,4), size=(1600, 400), plot_title="Solutions at final time $tfinal, D=$D ")
 display(heatmap_figure)
-#savefig("Heatmap_Periodic_D_0.01_Finaltime=$tfinal.pdf")
+#savefig("Heatmap_Periodic_D_0.1_Finaltime=$tfinal.pdf")
 
 # Compute averages over the domain at each time step
 time_steps = sol.t
@@ -192,7 +192,7 @@ plot!(time_steps, average_g, label="Mean Gridlockers on entire Domain",lw=3)
 plot!(time_steps, average_z, label="Mean Zealots on entire Domain",lw=3)
 plot!(time_steps, average_v, label="Mean Vote on entire Domain",lw=3)
 display(time_series)
-#savefig("TS_D_0.01_Finaltime=$tfinal.pdf")
+#savefig("TS_D_0.1_Finaltime=$tfinal.pdf")
 
 
 #Sanity check: Plot the average v_c and v_g 
@@ -209,4 +209,4 @@ plot!(time_steps, min_vg, label="Min v_g", lw=3)
 plot!(time_steps, max_vc, label="Max v_c", lw=3)
 plot!(time_steps, max_vg, label="Max v_g", lw=3)
 display(SanityCheck)
-#savefig("MeanTS(SanityCheck)_D_0.01_Finaltime=$tfinal.pdf")
+#savefig("MeanTS(SanityCheck)_D_0.1_Finaltime=$tfinal.pdf")
