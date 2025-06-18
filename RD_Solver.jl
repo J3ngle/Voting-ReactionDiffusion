@@ -11,7 +11,7 @@ dx = L / (Nx - 1) #Chop up x equally
 dy = L / (Ny - 1) #Chop up y equally
 x = range(0, L, length=Nx) # X size
 y = range(0, L, length=Ny) # y size 
-tfinal=25.0 #Final time
+tfinal=1000.0 #Final time
 X, Y = [xi for xi in x, yi in y], [yi for xi in x, yi in y]
 
 # Gaussian shell
@@ -110,7 +110,7 @@ function equilibrium_eq(v, c, g, z)
 end
 
 # Initial condition
-u0 = pack(c₀, g₀, z1₀, v_c₀, v_g₀)
+u0 = pack(c₀, g₀, z1₀, z2₀, v_c₀, v_g₀)
 du0 = zeros(size(u0))
 time = (0.0, tfinal)
 
@@ -172,18 +172,18 @@ time = (0.0, tfinal)
 
 DAEfunc = ODEFunction(DAE!, mass_matrix = M)
 prob = ODEProblem(DAEfunc, u0, time)
-sol = solve(prob, RadauIIA5(), saveat=0.01, reltol=1e-10, abstol=1e-10)
+sol = solve(prob, RadauIIA5(), saveat=0.01, reltol=1e-10, abstol=1e-12)
 
 # HEATMAPS: Plot results at final time 
 fontsize=12
 c, g, z, z2, v_c, v_g = unpack(sol[end]) #computations from the end of the simulation, we could pull these at any other times
-v = c .* v_c .+ g .* v_g .+ z #Compute v at the end
 pop = c .+ g .+ z .+ z2 #Compute population at the end
+v = (c .* v_c .+ g .* v_g .+ z) ./ (pop) #Compute v at the end
 clims = (0, 1) #Color limits for heatmaps
-p1 = heatmap(x, y, c', title="c(x,y)", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=false, clims=clims)
-p2 = heatmap(x, y, g', title="g(x,y)", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=false, clims=clims)
-p3 = heatmap(x, y, z', title="z(x,y)", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=false, clims=clims)
-p4 = heatmap(x, y, z2', title="z2(x,y)", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=false, clims=clims)
+p1 = heatmap(x, y, c', title="c(x,y)", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=false) # clims=clims
+p2 = heatmap(x, y, g', title="g(x,y)", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=false)# clims=clims
+p3 = heatmap(x, y, z', title="z(x,y)", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=false)# clims=clims
+p4 = heatmap(x, y, z2', title="z2(x,y)", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=false)# clims=clims
 p5 = heatmap(x, y, pop', title="Population", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=true)
 p6 = heatmap(x, y, v', title="v(x,y)", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=false, color=:balance)
 heatmap_figure = plot(p1, p2, p3, p4, p5, p6, layout=(3,3), size=(1600, 1600),colorbar=true, titlefontsize=fontsize, guidefontsize=fontsize, tickfontsize=fontsize, plot_title="Solutions at final time $tfinal, D=$D ")
@@ -196,7 +196,7 @@ average_c = [mean(unpack(sol[i])[1]) for i in 1:length(time_steps)]
 average_g = [mean(unpack(sol[i])[2]) for i in 1:length(time_steps)]
 average_z = [mean(unpack(sol[i])[3]) for i in 1:length(time_steps)]
 average_z2 = [mean(unpack(sol[i])[4]) for i in 1:length(time_steps)]
-ts_max_pop = [maximum(unpack(sol[i])[1]) + maximum(unpack(sol[i])[2]) + maximum(unpack(sol[i])[3]) + maximum(unpack(sol[i])[4]) for i in 1:length(time_steps)]
+#ts_max_pop = [maximum(unpack(sol[i])[1]) + maximum(unpack(sol[i])[2]) + maximum(unpack(sol[i])[3]) + maximum(unpack(sol[i])[4]) for i in 1:length(time_steps)]
 average_v = [mean(unpack(sol[i])[5]) .* mean(unpack(sol[i])[1])  + mean(unpack(sol[i])[2]) .* mean(unpack(sol[i])[6]) + mean(unpack(sol[i])[3]) + mean(unpack(sol[i])[4]) for i in 1:length(time_steps)]
 # Above computes c*v_c + g*v_g + z at each time step
 # Plot averages
@@ -205,7 +205,7 @@ plot!(time_steps, average_g, label="Mean Gridlockers",lw=3)
 plot!(time_steps, average_z, label="Mean Zealots of party 1",lw=3)
 plot!(time_steps, average_z2, label="Mean Zealots of party 2",lw=3)
 plot!(time_steps, average_v, label="Mean Vote for party 1",lw=3)
-plot!(time_steps, ts_max_pop, label="Max Population",lw=3)
+#plot!(time_steps, ts_max_pop, label="Max Population",lw=3)
 display(time_series)
 #savefig("TS_D_0.001_Finaltime=$tfinal.pdf")
 
