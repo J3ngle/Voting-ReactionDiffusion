@@ -11,7 +11,7 @@ dx = L / (Nx - 1) #Chop up x equally
 dy = L / (Ny - 1) #Chop up y equally
 x = range(0, L, length=Nx) # X size
 y = range(0, L, length=Ny) # y size 
-tfinal=1000.0 #Final time
+tfinal=500.0 #Final time
 X, Y = [xi for xi in x, yi in y], [yi for xi in x, yi in y]
 
 # Gaussian shell
@@ -21,12 +21,13 @@ end
 #Initial distribution/ conditions
 N=Nx
 c₀ = rand(N,N) #gaussian(X, Y, 0.5, 0.5, var) #initial distribution for Consensus makers
-#c₀ = clamp.(c₀, 0, 1) #Control the bounds of initial conditions
+c₀ = clamp.(c₀, 0, .25) #Control the bounds of initial conditions
 g₀ = rand(N,N) #gaussian(X, Y, 0.5, 0.4, var) #initial distribution for Gridlockers
-#g₀ = clamp.(g₀, 0, 0.05) #Control the bounds of initial conditions, we can change these around to see what will happen
+g₀ = clamp.(g₀, 0, 0.25) #Control the bounds of initial conditions, we can change these around to see what will happen
 z1₀ = rand(N,N) #gaussian(X, Y, 0.5, 0.5, var) #initial distribution for Zealots Party 1
+z1₀ = clamp.(z1₀, 0, 0.25) #Control the bounds of initial conditions, we can change these around to see what will happen
 z2₀ = rand(N,N) #gaussian(X, Y, 0.5, 0.5, var) #initial distribution for Zealots Party 2
-#z2₀ = clamp.(z2₀, 0, 0.01) #Control the bounds of initial conditions, we can change these around to see what will happen
+z2₀ = clamp.(z2₀, 0, 0.25) #Control the bounds of initial conditions, we can change these around to see what will happen
 τ= c₀+g₀+z1₀+z2₀ 
 c₀=c₀ ./ τ
 g₀=g₀ ./ τ
@@ -95,8 +96,6 @@ function Gradient(u, dx, dy)
     return [grad_x, grad_y]
 end
 
-
-
 # Fitness functions
 Fitness_c(v) = 4 * (v .- 0.5).^2 #Strategy fitness for Consensus makers
 Fitness_g(v) = 1 .- 4*(v .- 0.5).^2 #Strategy fitness for Gridlockers
@@ -114,29 +113,6 @@ u0 = pack(c₀, g₀, z1₀, z2₀, v_c₀, v_g₀)
 du0 = zeros(size(u0))
 time = (0.0, tfinal)
 
-# # Define the PDE system using v as a fixed spatial array
-# function pdes!(du, u, p, t)
-#     c, g, z, v_c, v_g = unpack(u)
-#     # Fitness values are matrices now
-#     v = c .* v_c + g .* v_g + z
-#     F_c = Fitness_c(v)
-#     F_g = Fitness_g(v)
-#     F_z = Fitness_z1(v)
-#     F_z2= Fitness_z2(v)
-#     # Reaction Diffusion equation with Replicator Equation
-#     du_c = D_c * laplacian(c) + (c .* g .* (F_c .- F_g) + c .* z .* (F_c .- F_z) + c .* z2 .* (F_c .- F_z2))
-#     du_g = D_g * laplacian(g) + (g .* c .* (F_g .- F_c) + g .* z .* (F_g .- F_z)+ g .* z2 .* (F_g .- F_z2))
-#     du_z = D_z * laplacian(z) + (z .* c .* (F_z .- F_c) + z .* g .* (F_z .- F_g))
-#     f(v) =equilibrium_eq(v, c, g, z)
-#     denominator = 2 .* v.^2 .- 2 .* v .+ 1
-#     v_c = f(v).^2 ./ denominator #((1 .-v_c).*v.^2+v_c.*(1 .-v).^2)
-#     v_g = (1 .- f(v)).^2 ./ denominator #(1-(v_g).*v.^2+(1 .-v_g).*(1 .-v).^2)
-#     du .= pack(du_c, du_g, du_z, v_c, v_g)
-# end
-# # # Solve the PDE
-# prob = ODEProblem(pdes!, u0, tspan)
-# sol = solve(prob, Rodas5(), abstol=1e-6,saveat=tfinal)
-
 end
 
 function DAE!(du, u, p, t)
@@ -149,10 +125,10 @@ function DAE!(du, u, p, t)
     F_z = Fitness_z1(v)
     F_z2 = Fitness_z2(v)
     # Partial Differential equations
-    du_c = D_c * laplacian(c) + (c .* g .* (F_c .- F_g) + c .* z .* (F_c .- F_z)+c .* z2 .* (F_c .- F_z2)) 
-    du_g = D_g * laplacian(g) + (g .* c .* (F_g .- F_c) + g .* z .* (F_g .- F_z)+ g .* z2 .* (F_g .- F_z2)) 
+    du_c = D_c * laplacian(c) + (c .* g .* (F_c .- F_g) + c .* z .* (F_c .- F_z) + c .* z2 .* (F_c .- F_z2)) 
+    du_g = D_g * laplacian(g) + (g .* c .* (F_g .- F_c) + g .* z .* (F_g .- F_z) + g .* z2 .* (F_g .- F_z2)) 
     du_z = D_z * laplacian(z) + (z .* c .* (F_z .- F_c) + z .* g .* (F_z .- F_g))
-    du_z2 = D_z2 * laplacian(z2) + (z2 .* c .* (F_z2 .- F_c) + z .* g .* (F_z2 .- F_g))
+    du_z2 = D_z2 * laplacian(z2) + (z2 .* c .* (F_z2 .- F_c) + z2 .* g .* (F_z2 .- F_g))
     # Algebraic equations
     du_v_c = (1 .- v_c) .* v.^2 .- v_c .* (1 .- v).^2
     du_v_g = (1 .- v_g) .* (1 .- v).^2 .- v_g .* v.^2
@@ -172,19 +148,19 @@ time = (0.0, tfinal)
 
 DAEfunc = ODEFunction(DAE!, mass_matrix = M)
 prob = ODEProblem(DAEfunc, u0, time)
-sol = solve(prob, RadauIIA5(), saveat=0.01, reltol=1e-10, abstol=1e-12)
+sol = solve(prob, RadauIIA5(), saveat=0.01, reltol=1e-6, abstol=1e-8) #Different solvers:RadauIIA5
 
 # HEATMAPS: Plot results at final time 
-fontsize=12
+fontsize=14
 c, g, z, z2, v_c, v_g = unpack(sol[end]) #computations from the end of the simulation, we could pull these at any other times
-pop = c .+ g .+ z .+ z2 #Compute population at the end
-v = (c .* v_c .+ g .* v_g .+ z) ./ (pop) #Compute v at the end
+population = c .+ g .+ z .+ z2 #Compute population at the end
+v = (c .* v_c .+ g .* v_g .+ z) ./ (population) #Compute v at the end
 clims = (0, 1) #Color limits for heatmaps
-p1 = heatmap(x, y, c', title="c(x,y)", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=false) # clims=clims
+p1 = heatmap(x, y, c', title="c(x,y)", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=false)# clims=clims
 p2 = heatmap(x, y, g', title="g(x,y)", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=false)# clims=clims
 p3 = heatmap(x, y, z', title="z(x,y)", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=false)# clims=clims
 p4 = heatmap(x, y, z2', title="z2(x,y)", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=false)# clims=clims
-p5 = heatmap(x, y, pop', title="Population", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=true)
+p5 = heatmap(x, y, population', title="Population", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=true)
 p6 = heatmap(x, y, v', title="v(x,y)", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=false, color=:balance)
 heatmap_figure = plot(p1, p2, p3, p4, p5, p6, layout=(3,3), size=(1600, 1600),colorbar=true, titlefontsize=fontsize, guidefontsize=fontsize, tickfontsize=fontsize, plot_title="Solutions at final time $tfinal, D=$D ")
 display(heatmap_figure)
@@ -192,12 +168,12 @@ display(heatmap_figure)
 
 # TIME SERIES: Compute averages over the domain at each time step
 time_steps = sol.t
-average_c = [mean(unpack(sol[i])[1]) for i in 1:length(time_steps)]
-average_g = [mean(unpack(sol[i])[2]) for i in 1:length(time_steps)]
-average_z = [mean(unpack(sol[i])[3]) for i in 1:length(time_steps)]
-average_z2 = [mean(unpack(sol[i])[4]) for i in 1:length(time_steps)]
+average_c = [mean(unpack(sol[i])[1]) for i in 1:length(time_steps)] #Average Consensus-makers
+average_g = [mean(unpack(sol[i])[2]) for i in 1:length(time_steps)] #Average Gridlockers
+average_z = [mean(unpack(sol[i])[3]) for i in 1:length(time_steps)] #Average Zealots of party 1
+average_z2 = [mean(unpack(sol[i])[4]) for i in 1:length(time_steps)] #Average Zealots of party 2
 #ts_max_pop = [maximum(unpack(sol[i])[1]) + maximum(unpack(sol[i])[2]) + maximum(unpack(sol[i])[3]) + maximum(unpack(sol[i])[4]) for i in 1:length(time_steps)]
-average_v = [mean(unpack(sol[i])[5]) .* mean(unpack(sol[i])[1])  + mean(unpack(sol[i])[2]) .* mean(unpack(sol[i])[6]) + mean(unpack(sol[i])[3]) + mean(unpack(sol[i])[4]) for i in 1:length(time_steps)]
+average_v = [mean(unpack(sol[i])[5]) .* mean(unpack(sol[i])[1])  .+ mean(unpack(sol[i])[2]) .* mean(unpack(sol[i])[6]) .+ mean(unpack(sol[i])[3]) .+ mean(unpack(sol[i])[4]) for i in 1:length(time_steps)]
 # Above computes c*v_c + g*v_g + z at each time step
 # Plot averages
 time_series = plot(time_steps, average_c, label="Mean Consensus Makers", xlabel="Time", ylabel="Mean", title="Time Series averages of c, g, z, v ",lw=3,legend=:outertop)
