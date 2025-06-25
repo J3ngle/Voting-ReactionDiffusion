@@ -1,40 +1,41 @@
-using DifferentialEquations, Plots, LinearAlgebra, Roots, Statistics, Sundials, ColorSchemes, Unitful
+using DifferentialEquations, Plots, LinearAlgebra, Roots, Statistics, Sundials, ColorSchemes
 @time begin
 # Parameters for computations
 D_c = 1e-3 #3 #Diffusion Coefficient for Consensus makers
 D_g = 1e-3 #3 #Diffusion Coefficient for Gridlockers
-D_z = 1e-3 #3 #Diffusion Coefficient for Zealots
-D_z2 = 1e-3 #3 #Diffusion Coefficient for Zealots Party 2 
+D_z = 1e-10 #3 #Diffusion Coefficient for Zealots
+D_z2 = 1e-10 #3 #Diffusion Coefficient for Zealots Party 2 
+m_c = 1.0 #Migration rate for Consensus makers
+m_g = 1.0 #Migration rate for Gridlockers
+m_z = 1.0 #Migration rate for Zealots Party 1
+m_z2 = 1.0 #Migration rate for Zealots Party 2
 L = 10 #Length of domain 
 Nx, Ny = 10, 10 #Number of discretization points in either direction
 dx = L / (Nx - 1) #Chop up x equally
 dy = L / (Ny - 1) #Chop up y equally
 x = range(0, L, length=Nx) # X size
 y = range(0, L, length=Ny) # y size 
-tfinal=500.0 #Final time
+tfinal=250.0 #Final time
 X, Y = [xi for xi in x, yi in y], [yi for xi in x, yi in y]
 
-# Gaussian shell
-function gaussian(x, y, x0, y0, sigma)
-    return exp.(-((x .- x0).^2 + (y .- y0).^2) ./ (2*sigma^2))
-end
 #Initial distribution/ conditions
 N=Nx
 c₀ = rand(N,N) #gaussian(X, Y, 0.5, 0.5, var) #initial distribution for Consensus makers
-c₀ = clamp.(c₀, 0, .25) #Control the bounds of initial conditions
+#c₀ = clamp.(c₀, 0, .25) #Control the bounds of initial conditions
 g₀ = rand(N,N) #gaussian(X, Y, 0.5, 0.4, var) #initial distribution for Gridlockers
-g₀ = clamp.(g₀, 0, 0.25) #Control the bounds of initial conditions, we can change these around to see what will happen
+#g₀ = clamp.(g₀, 0, 0.25) #Control the bounds of initial conditions, we can change these around to see what will happen
 z1₀ = rand(N,N) #gaussian(X, Y, 0.5, 0.5, var) #initial distribution for Zealots Party 1
-z1₀ = clamp.(z1₀, 0, 0.25) #Control the bounds of initial conditions, we can change these around to see what will happen
+#z1₀ = clamp.(z1₀, 0, 0.25) #Control the bounds of initial conditions, we can change these around to see what will happen
 z2₀ = rand(N,N) #gaussian(X, Y, 0.5, 0.5, var) #initial distribution for Zealots Party 2
-z2₀ = clamp.(z2₀, 0, 0.25) #Control the bounds of initial conditions, we can change these around to see what will happen
-τ= c₀+g₀+z1₀+z2₀ 
+#z2₀ = clamp.(z2₀, 0, 0.25) #Control the bounds of initial conditions, we can change these around to see what will happen
+τ= c₀ .+ g₀ .+ z1₀ .+ z2₀
 c₀=c₀ ./ τ
 g₀=g₀ ./ τ
 z1₀=z1₀ ./ τ
-v_0 = c₀ + g₀ + z1₀ #Initial vote on the domain
-v_c₀= v_0.^2 ./(2*v_0.^2 .- 2*v_0 .+ 1) #Initial vote for Consensus makers
-v_g₀= (1 .- v_0).^2 ./(2*v_0.^2 .- 2*v_0 .+ 1) #Initial vote for Gridlockers
+z2₀=z2₀ ./ τ
+v_0 = c₀ .+ g₀ .+ z1₀ #Initial vote on the domain
+v_c₀= v_0.^2 ./(2 .* v_0.^2 .- 2 .* v_0 .+ 1) #Initial vote for Consensus makers
+v_g₀= (1 .- v_0).^2 ./ (2 .*v_0.^2 .- 2 .* v_0 .+ 1) #Initial vote for Gridlockers
 
 # Pack and unpack functions for the state vector
 # This is used to convert the 2D arrays into a 1D vector for the ODE solver
@@ -97,16 +98,10 @@ function Gradient(u, dx, dy)
 end
 
 # Fitness functions
-Fitness_c(v) = 4 * (v .- 0.5).^2 #Strategy fitness for Consensus makers
-Fitness_g(v) = 1 .- 4*(v .- 0.5).^2 #Strategy fitness for Gridlockers
+Fitness_c(v) = 4 .* (v .- 0.5).^2 #Strategy fitness for Consensus makers
+Fitness_g(v) = 1 .- 4 .* (v .- 0.5).^2 #Strategy fitness for Gridlockers
 Fitness_z1(v) = (v).^2 #Strategy fitness for Zealots party 1
 Fitness_z2(v) = 1 .- (v).^2 #Strategy fitness for Zealots party 2
-#Set up equilibrium equation
-
-#not used 
-function equilibrium_eq(v, c, g, z)
-    return v.^2 .* c .+ g .* (1 .- v).^2 .+ (z .- v) .* (2 .* v.^2 - 2 .* v .+ 1)
-end
 
 # Initial condition
 u0 = pack(c₀, g₀, z1₀, z2₀, v_c₀, v_g₀)
@@ -125,10 +120,10 @@ function DAE!(du, u, p, t)
     F_z = Fitness_z1(v)
     F_z2 = Fitness_z2(v)
     # Partial Differential equations
-    du_c = D_c * laplacian(c) + (c .* g .* (F_c .- F_g) + c .* z .* (F_c .- F_z) + c .* z2 .* (F_c .- F_z2)) 
-    du_g = D_g * laplacian(g) + (g .* c .* (F_g .- F_c) + g .* z .* (F_g .- F_z) + g .* z2 .* (F_g .- F_z2)) 
-    du_z = D_z * laplacian(z) + (z .* c .* (F_z .- F_c) + z .* g .* (F_z .- F_g))
-    du_z2 = D_z2 * laplacian(z2) + (z2 .* c .* (F_z2 .- F_c) + z2 .* g .* (F_z2 .- F_g))
+    du_c = D_c .* laplacian(c) .+ c .* g .* (F_c .- F_g) + c .* z .* (F_c .- F_z) + c .* z2 .* (F_c .- F_z2)
+    du_g = D_g .* laplacian(g) .+ g .* c .* (F_g .- F_c) + g .* z .* (F_g .- F_z) + g .* z2 .* (F_g .- F_z2)
+    du_z = D_z .* laplacian(z) .+ z .* c .* (F_z .- F_c) + z .* g .* (F_z .- F_g)
+    du_z2 = D_z2 .* laplacian(z2) .+ z2 .* c .* (F_z2 .- F_c) + z2 .* g .* (F_z2 .- F_g) 
     # Algebraic equations
     du_v_c = (1 .- v_c) .* v.^2 .- v_c .* (1 .- v).^2
     du_v_g = (1 .- v_g) .* (1 .- v).^2 .- v_g .* v.^2
@@ -139,7 +134,7 @@ end
 
 # Mass matrix: 1 for c,g,z , 0 for v_c,v_g 
 # function mass_matrix(u, p, t)
-#M = diagm(vcat(ones(3*Nx*Ny), zeros(2*Nx*Ny)))
+# M = diagm(vcat(ones(4*Nx*Ny), zeros(2*Nx*Ny)))
 M = diagm(vcat(ones(6*Nx*Ny)))
 
 u0 = pack(c₀, g₀, z1₀, z2₀, v_c₀, v_g₀)
@@ -153,16 +148,22 @@ sol = solve(prob, RadauIIA5(), saveat=0.01, reltol=1e-6, abstol=1e-8) #Different
 # HEATMAPS: Plot results at final time 
 fontsize=14
 c, g, z, z2, v_c, v_g = unpack(sol[end]) #computations from the end of the simulation, we could pull these at any other times
-population = c .+ g .+ z .+ z2 #Compute population at the end
-v = (c .* v_c .+ g .* v_g .+ z) ./ (population) #Compute v at the end
+population = c .+ g .+ z .+ z2 #Compute population, this is a matrix
+total_population = sum(c) .+ sum(g) .+ sum(z) .+ sum(z2) #Compute population at the end, this is a scalar
+c=c ./ population #Normalize c
+g=g ./ population #Normalize g
+z=z ./ population #Normalize z
+z2=z2 ./ population #Normalize z2
+heatmap_population = population ./ total_population #Normalize population
+v = (c .* v_c .+ g .* v_g .+ z) ./ population #Compute v at the end
 clims = (0, 1) #Color limits for heatmaps
-p1 = heatmap(x, y, c', title="c(x,y)", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=false)# clims=clims
-p2 = heatmap(x, y, g', title="g(x,y)", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=false)# clims=clims
-p3 = heatmap(x, y, z', title="z(x,y)", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=false)# clims=clims
-p4 = heatmap(x, y, z2', title="z2(x,y)", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=false)# clims=clims
-p5 = heatmap(x, y, population', title="Population", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=true)
+p1 = heatmap(x, y, c', title="c(x,y) as a proportion", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=false, clims=clims)# clims=clims
+p2 = heatmap(x, y, g', title="g(x,y) as a proportion", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=false, clims=clims)# clims=clims
+p3 = heatmap(x, y, z', title="z(x,y) as a proportion", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=false, clims=clims)# clims=clims
+p4 = heatmap(x, y, z2', title="z2(x,y) as a proportion", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=false, clims=clims)# clims=clims
+p5 = heatmap(x, y, heatmap_population',  title="Population as a proportion", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=true)
 p6 = heatmap(x, y, v', title="v(x,y)", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=false, color=:balance)
-heatmap_figure = plot(p1, p2, p3, p4, p5, p6, layout=(3,3), size=(1600, 1600),colorbar=true, titlefontsize=fontsize, guidefontsize=fontsize, tickfontsize=fontsize, plot_title="Solutions at final time $tfinal, D=$D ")
+heatmap_figure = plot(p1, p2, p3, p4, p5, p6, layout=(3,3), size=(1800, 1800),colorbar=true, titlefontsize=fontsize, guidefontsize=fontsize, tickfontsize=fontsize, plot_title="Solutions at final time $tfinal, D=$D ")
 display(heatmap_figure)
 #savefig("Heatmap_D_0.001_Finaltime=$tfinal.pdf")
 
@@ -187,17 +188,22 @@ display(time_series)
 
 
 #Sanity check: Plot the average v_c and v_g 
-mean_vc = [mean(unpack(sol[i])[4]) for i in 1:length(time_steps)]
-mean_vg = [mean(unpack(sol[i])[5]) for i in 1:length(time_steps)]
-min_vc = [minimum(unpack(sol[i])[4]) for i in 1:length(time_steps)]
-min_vg = [minimum(unpack(sol[i])[5]) for i in 1:length(time_steps)]
-max_vc = [maximum(unpack(sol[i])[4]) for i in 1:length(time_steps)]
-max_vg = [maximum(unpack(sol[i])[5]) for i in 1:length(time_steps)]
+mean_vc = [mean(unpack(sol[i])[5]) for i in 1:length(time_steps)]
+mean_vg = [mean(unpack(sol[i])[6]) for i in 1:length(time_steps)]
+min_vc = [minimum(unpack(sol[i])[5]) for i in 1:length(time_steps)]
+min_vg = [minimum(unpack(sol[i])[6]) for i in 1:length(time_steps)]
+max_vc = [maximum(unpack(sol[i])[5]) for i in 1:length(time_steps)]
+max_vg = [maximum(unpack(sol[i])[6]) for i in 1:length(time_steps)]
+sanity_population = [sum(unpack(sol[i])[1]) + sum(unpack(sol[i])[2]) + sum(unpack(sol[i])[3]) + sum(unpack(sol[i])[4]) for i in 1:length(time_steps)] ./ [sum(unpack(sol[1])[1]) + sum(unpack(sol[1])[2]) + sum(unpack(sol[1])[3]) + sum(unpack(sol[1])[4])] #./[sum(unpack(sol[1])[1]) + sum(unpack(sol[1])[2]) + sum(unpack(sol[1])[3]) + sum(unpack(sol[1])[4])] # Normalize population
+Population_error = maximum(sanity_population) - minimum(sanity_population)
 SanityCheck=plot(time_steps, mean_vc, label="Mean v_c", xlabel="Time", ylabel="Mean", lw=3, legend=:outertopright, title="Mean v_c and v_g over time, Sanity Check")
 plot!(time_steps, mean_vg, label="Mean v_g", lw=3)
 plot!(time_steps, min_vc, label="Min v_c", lw=3)
 plot!(time_steps, min_vg, label="Min v_g", lw=3)
 plot!(time_steps, max_vc, label="Max v_c", lw=3)
 plot!(time_steps, max_vg, label="Max v_g", lw=3)
+plot!(time_steps, sanity_population, label="Population", lw=3)
 display(SanityCheck)
 #savefig("MeanTS(SanityCheck)_D_0.01_Finaltime=$tfinal.pdf")
+
+println("Population error: ", Population_error)
