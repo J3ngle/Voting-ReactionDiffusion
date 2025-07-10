@@ -1,21 +1,21 @@
 using DifferentialEquations, Plots, LinearAlgebra, Roots, Statistics, Sundials, ColorSchemes
 @time begin
 # Parameters for computations
-D_c = 1e-3 #3 #Diffusion Coefficient for Consensus makers
-D_g = 1e-3 #3 #Diffusion Coefficient for Gridlockers
+D_c = 1e-10#3 #Diffusion Coefficient for Consensus makers
+D_g = 1e-0#3 #Diffusion Coefficient for Gridlockers
 D_z = 1e-10 #3 #Diffusion Coefficient for Zealots
-D_z2 = 1e-10 #3 #Diffusion Coefficient for Zealots Party 2 
+D_z2 = 1e-0 #3 #Diffusion Coefficient for Zealots Party 2
 m_c = 1.0 #Migration rate for Consensus makers
 m_g = 1.0 #Migration rate for Gridlockers
 m_z = 1.0 #Migration rate for Zealots Party 1
 m_z2 = 1.0 #Migration rate for Zealots Party 2
 L = 10 #Length of domain 
-Nx, Ny = 10, 10 #Number of discretization points in either direction
+Nx, Ny = 15, 15 #Number of discretization points in either direction
 dx = L / (Nx - 1) #Chop up x equally
 dy = L / (Ny - 1) #Chop up y equally
 x = range(0, L, length=Nx) # X size
 y = range(0, L, length=Ny) # y size 
-tfinal=250.0 #Final time
+tfinal=2500.0 #Final time
 X, Y = [xi for xi in x, yi in y], [yi for xi in x, yi in y]
 
 #Initial distribution/ conditions
@@ -155,17 +155,17 @@ g=g ./ population #Normalize g
 z=z ./ population #Normalize z
 z2=z2 ./ population #Normalize z2
 heatmap_population = population ./ total_population #Normalize population
-v = (c .* v_c .+ g .* v_g .+ z) ./ population #Compute v at the end
+v = (c .* v_c .+ g .* v_g .+ z) #Compute v at the end
 clims = (0, 1) #Color limits for heatmaps
 p1 = heatmap(x, y, c', title="c(x,y) as a proportion", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=false, clims=clims)# clims=clims
 p2 = heatmap(x, y, g', title="g(x,y) as a proportion", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=false, clims=clims)# clims=clims
 p3 = heatmap(x, y, z', title="z(x,y) as a proportion", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=false, clims=clims)# clims=clims
 p4 = heatmap(x, y, z2', title="z2(x,y) as a proportion", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=false, clims=clims)# clims=clims
-p5 = heatmap(x, y, heatmap_population',  title="Population as a proportion", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=true)
-p6 = heatmap(x, y, v', title="v(x,y)", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=false, color=:balance)
-heatmap_figure = plot(p1, p2, p3, p4, p5, p6, layout=(3,3), size=(1800, 1800),colorbar=true, titlefontsize=fontsize, guidefontsize=fontsize, tickfontsize=fontsize, plot_title="Solutions at final time $tfinal, D=$D ")
+p5 = heatmap(x, y, heatmap_population',  title="Population as a proportion", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=false, clims=clims) # clims=clims
+p6 = heatmap(x, y, v', title="v(x,y)", xlabel="x", ylabel="y", aspect_ratio=1,colorbar=false, color=:balance, clims=clims) # clims=clims
+heatmap_figure = plot(p1, p2, p3, p4, p5, p6, layout=(3,3), size=(1800, 1800),colorbar=true, titlefontsize=fontsize, guidefontsize=fontsize, tickfontsize=fontsize, plot_title="Solutions at final time $tfinal")
 display(heatmap_figure)
-#savefig("Heatmap_D_0.001_Finaltime=$tfinal.pdf")
+#savefig("Heatmap_Clean_DifferentD_EvenIC_Finaltime=$tfinal.pdf")
 
 # TIME SERIES: Compute averages over the domain at each time step
 time_steps = sol.t
@@ -184,7 +184,7 @@ plot!(time_steps, average_z2, label="Mean Zealots of party 2",lw=3)
 plot!(time_steps, average_v, label="Mean Vote for party 1",lw=3)
 #plot!(time_steps, ts_max_pop, label="Max Population",lw=3)
 display(time_series)
-#savefig("TS_D_0.001_Finaltime=$tfinal.pdf")
+#savefig("TS_DifferentD_EvenIC_Finaltime=$tfinal.pdf")
 
 
 #Sanity check: Plot the average v_c and v_g 
@@ -206,4 +206,4 @@ plot!(time_steps, sanity_population, label="Population", lw=3)
 display(SanityCheck)
 #savefig("MeanTS(SanityCheck)_D_0.01_Finaltime=$tfinal.pdf")
 
-println("Population error: ", Population_error)
+#println("Population error: ", Population_error)
