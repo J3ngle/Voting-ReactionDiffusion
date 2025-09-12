@@ -249,7 +249,7 @@ plot!(time_steps, average_v,lw=8)
 # plot!(time_steps, average_Fitness_z2,lw=8)
 #plot!(time_steps, ts_max_pop, label="Max Population",lw=3)
 display(time_series)
-#savefig("Directional_Movement_D_i=$D_c,_M_i=$m_c,lambda=1,_T=$tfinal.pdf")
+#savefig("TimeSeriesGridlockT=$tfinal.pdf")
 
 ## Time series fitness
 time_series_fit = plot(time_steps, average_Fitness_c, xlabel="Time", ylabel="Mean",lw=8, xlabelfontsize=20, ylabelfontsize=20,
