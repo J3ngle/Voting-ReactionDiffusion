@@ -14,7 +14,7 @@ V=1 #Social Imitation
 b=1 #public good benefit
 k=0 #public good cost
 L = 10 #Length of domain    
-Nx, Ny = 50, 50 #Number of discretization points in either direction
+Nx, Ny = 100, 100 #Number of discretization points in either direction
 dx = L / (Nx - 1) #Chop up x equally
 dy = L / (Ny - 1) #Chop up y equally
 x = range(0, L, length=Nx) # X size
@@ -27,7 +27,7 @@ N=Nx
 c₀ = rand(N,N) #gaussian(X, Y, 0.5, 0.5, var) #initial distribution for Consensus makers
 #c₀ = clamp.(c₀, 0, .25) #Control the bounds of initial conditions
 g₀ = rand(N,N) #gaussian(X, Y, 0.5, 0.4, var) #initial distribution for Gridlockers
-g₀ = clamp.(g₀, 0, 0.05) #Control the bounds of initial conditions, we can change these around to see what will happen
+#g₀ = clamp.(g₀, 0, 0.05) #Control the bounds of initial conditions, we can change these around to see what will happen
 z1₀ = rand(N,N) #gaussian(X, Y, 0.5, 0.5, var) #initial distribution for Zealots Party 1
 #z1₀ = clamp.(z1₀, 0, 0.05) #Control the bounds of initial conditions, we can change these around to see what will happen
 z2₀ = rand(N,N) #gaussian(X, Y, 0.5, 0.5, var) #initial distribution for Zealots Party 2
@@ -116,7 +116,7 @@ u0 = pack(c₀, g₀, z1₀, z2₀, v_c₀, v_g₀)
 du0 = zeros(size(u0))
 time = (0.0, tfinal)
 
-end
+
 
 function DAE!(du, u, p, t)
     c, g, z, z2, v_c, v_g = unpack(u)
@@ -310,3 +310,5 @@ display(heatmap_figure)#savefig("Heatmap_Clean_DifferentD_EvenIC_Finaltime=$tfin
 # end
 
 # mp4(anim, "heatmap_video.mp4", fps=5)
+
+end #time
