@@ -1,26 +1,26 @@
 using DifferentialEquations, Plots, LinearAlgebra, Roots, Statistics, Sundials, ColorSchemes
 @time begin
 # Parameters for computations
-D_c = 0.1#0.1#1e-0 #Diffusion Coefficient for Consensus makers
-D_g = 0.1#1e-13 #3 #Diffusion Coefficient for Gridlockers
-D_z = 0.1#0.1#1e-0 #Diffusion Coefficient for Zealots
-D_z2 = 0.1#1e-13 #3 #Diffusion Coefficient for Zealots Party 2
-m_c = 1#1e-10 # #Migration rate for Consensus makers
-m_g =  1# #Migration rate for Gridlockers
-m_z = 1#1e-0 # #Migration rate for Zealots Party 1
+D_c = 0.15 #0.1#1e-0 #Diffusion Coefficient for Consensus makers
+D_g = 0.15 #1e-13 #3 #Diffusion Coefficient for Gridlockers
+D_z = 0.15 #0.1#1e-0 #Diffusion Coefficient for Zealots
+D_z2 = 0.15 #1e-13 #3 #Diffusion Coefficient for Zealots Party 2
+m_c = 1 #1e-10 # #Migration rate for Consensus makers
+m_g =  1 # #Migration rate for Gridlockers
+m_z = 1 #1e-0 # #Migration rate for Zealots Party 1
 m_z2 = 1 # #Migration rate for Zealots Party 2
 V= 1 #Social Imitation
-λ= 1 #Economic preference
+λ=  0.5 #Economic preference
 b=1 #public good benefit
 k=0 #public good cost
 s= 0 #Spillovers
 L = 10 #Length of domain    
-Nx, Ny = 10, 10 #Number of discretization points in either direction
+Nx, Ny = 15, 15 #Number of discretization points in either direction
 dx = L / (Nx - 1) #Chop up x equally
 dy = L / (Ny - 1) #Chop up y equally
 x = range(0, L, length=Nx) # X size
 y = range(0, L, length=Ny) # y size 
-tfinal=35.0 #Final time
+tfinal=25.0 #Final time
 X, Y = [xi for xi in x, yi in y], [yi for xi in x, yi in y]
 
 #Initial distribution/ conditions
@@ -235,17 +235,17 @@ p5 = heatmap(x, y, heatmap_population',  aspect_ratio=1,colorbar=false, clims=cl
 p6 = heatmap(x, y, v',  aspect_ratio=1,color=:viridis, colorbar=false, clims=clims) # clims=climscolor=:balance,
 heatmap_figure = plot(p1, p2, p3, p4, p5, p6, layout=(3,3), size=(1400, 1500),colorbar=true, titlefontsize=fontsize, guidefontsize=fontsize, tickfontsize=fontsize, plot_title="Solutions at final time $tfinal")
 display(plot(p1, axis=false, framestyle=:none,ticks=false, size=(625, 625))) #Consensus makers
-#savefig("N=$Nx,Heatmap1_EqualDiffusion,Dc=$D_c,_ConsensusMakers,lambda=$λ,Mc=$m_c,T=$tfinal.pdf")
+savefig("SmallTEST,Heatmap5_Interesting_ConsensusMakers,Dc=$D_c,M_c=$m_c,lambda=$λ,s=$s,b=$b,k=$k,T=$tfinal.pdf")
 display(plot(p2, axis=false, framestyle=:none, ticks=false,size=(625, 625))) #Gridlockers
-#savefig("N=$Nx,Heatmap1_EqualDiffusion,Dg=$D_g,_Gridlockers,lambda=$λ,Mg=$m_g,T=$tfinal.pdf")
+savefig("SmallTEST,Heatmap5_Interesting_Gridlockers,Dg=$D_g,M_g=$m_g,lambda=$λ,s=$s,b=$b,k=$k,T=$tfinal.pdf")
 display(plot(p3, axis=false, framestyle=:none, ticks=false,size=(625, 625))) #Zealots of party 1
-#savefig("N=$Nx,Heatmap1_EqualDiffusion,Dz1=$D_z,_Zealots1,lambda=$λ,Mz1=$m_z,T=$tfinal.pdf")
+savefig("SmallTEST,Heatmap5_Interesting_Zealots1,Dz1=$D_z,M_z1=$m_z,lambda=$λ,s=$s,b=$b,k=$k,T=$tfinal.pdf")
 display(plot(p4, axis=false, framestyle=:none, ticks=false,size=(625, 625))) #Zealots of party 2
-#savefig("N=$Nx,Heatmap1_EqualDiffusion,Dz2=$D_z2,_Zealots2,lambda=$λ,Mz2=$m_z2,T=$tfinal.pdf")
+savefig("SmallTEST,Heatmap5_Interesting_Zealots2,Dz2=$D_z2,M_z2=$m_z2,lambda=$λ,s=$s,b=$b,k=$k,T=$tfinal.pdf")
 display(plot(p5, axis=false, framestyle=:none, ticks=false,size=(625, 625))) #Population
-#savefig("N=$Nx,Heatmap1_EqualDiffusion,_PopulationClusterSameD,lambda=$λ,b-k=$b,T=$tfinal.pdf")
+savefig("SmallTEST,Heatmap5_Interesting,_Population,Dc=$D_c,M_c=$m_c,lambda=$λ,s=$s,b=$b,k=$k,T=$tfinal.pdf")
 display(plot(p6, axis=false, framestyle=:none, ticks=false, size=(625,625))) #Vote
-#savefig("N=$Nx,Heatmap1_EqualDiffusion,_Vote_Dc=$D_c,lambda=$λ,b-k=$b,T=$tfinal.pdf")
+savefig("SmallTEST,Heatmap5_Interesting,_Vote_Dc=$D_c,M_c=$m_c,lambda=$λ,s=$s,b=$b,k=$k,T=$tfinal.pdf")
 display(heatmap_figure)#savefig("Heatmap_Clean_DifferentD_EvenIC_Finaltime=$tfinal.pdf")
 
 # TIME SERIES: Compute averages over the domain at each time step
@@ -272,7 +272,7 @@ plot!(time_steps, average_v,lw=8)
 # plot!(time_steps, average_Fitness_z2,lw=8)
 #plot!(time_steps, ts_max_pop, label="Max Population",lw=3)
 display(time_series)
-#savefig("TimeSeriesDifferentD=$tfinal.pdf")
+savefig("SmallTEST,TimeSeriesInteresting,Dc=$D_c,M_c=$m_c,lambda=$λ,s=$s,b=$b,k=$k,T=$tfinal.pdf")
 
 ## Time series fitness
 time_series_fit = plot(time_steps, average_Fitness_c, xlabel="Time", ylabel="Mean",lw=8, xlabelfontsize=20, ylabelfontsize=20,
@@ -306,28 +306,28 @@ display(time_series_fit)
 
 # #println("Population error: ", Population_error)
 
-# # ## Movie 
-nframes = 50
-frame_idxs = round.(Int, range(1, length(sol), length=nframes))
-anim = @animate for idx in frame_idxs
-    c, g, z, z2, v_c, v_g = unpack(sol[idx])
-    population = c .+ g .+ z .+ z2
-    c = c ./ population
-    g = g ./ population
-    z = z ./ population
-    z2 = z2 ./ population
-    # heatmap_population = population ./ sum(population)
-    v = (c .* v_c .+ g .* v_g .+ z)
-    clims = (0, 1)
-    p1 = heatmap(x, y, c', aspect_ratio=1, colorbar=false, clims=clims)
-    p2 = heatmap(x, y, g', aspect_ratio=1, colorbar=false, clims=clims)
-    p3 = heatmap(x, y, z', aspect_ratio=1, colorbar=false, clims=clims)
-    p4 = heatmap(x, y, z2', aspect_ratio=1, colorbar=false, clims=clims)
-    p5 = heatmap(x, y, heatmap_population', aspect_ratio=1, colorbar=false, clims=clims)
-    p6 = heatmap(x, y, v', aspect_ratio=1, colorbar=false, color=:viridis, clims=clims)
-    plot(p1, p2, p3, p4, p5, p6, layout=(3,3), size=(1400, 1500), colorbar=true, titlefontsize=fontsize, guidefontsize=fontsize, tickfontsize=fontsize, plot_title="Solutions at t=$(round(sol.t[idx], digits=2))")
-end
+# # # ## Movie 
+# nframes = 50
+# frame_idxs = round.(Int, range(1, length(sol), length=nframes))
+# anim = @animate for idx in frame_idxs
+#     c, g, z, z2, v_c, v_g = unpack(sol[idx])
+#     population = c .+ g .+ z .+ z2
+#     c = c ./ population
+#     g = g ./ population
+#     z = z ./ population
+#     z2 = z2 ./ population
+#     # heatmap_population = population ./ sum(population)
+#     v = (c .* v_c .+ g .* v_g .+ z)
+#     clims = (0, 1)
+#     p1 = heatmap(x, y, c', aspect_ratio=1, colorbar=false, clims=clims)
+#     p2 = heatmap(x, y, g', aspect_ratio=1, colorbar=false, clims=clims)
+#     p3 = heatmap(x, y, z', aspect_ratio=1, colorbar=false, clims=clims)
+#     p4 = heatmap(x, y, z2', aspect_ratio=1, colorbar=false, clims=clims)
+#     p5 = heatmap(x, y, heatmap_population', aspect_ratio=1, colorbar=false, clims=clims)
+#     p6 = heatmap(x, y, v', aspect_ratio=1, colorbar=false, color=:viridis, clims=clims)
+#     plot(p1, p2, p3, p4, p5, p6, layout=(3,3), size=(1400, 1500), colorbar=true, titlefontsize=fontsize, guidefontsize=fontsize, tickfontsize=fontsize, plot_title="Solutions at t=$(round(sol.t[idx], digits=2))")
+# end
 
-mp4(anim, "heatmap_video.mp4", fps=5)
+# mp4(anim, "heatmap_video.mp4", fps=5)
 
 end #counter
