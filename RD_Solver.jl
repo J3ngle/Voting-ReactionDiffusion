@@ -1,4 +1,4 @@
-using DifferentialEquations, Plots, LinearAlgebra, Roots, Statistics, Sundials, ColorSchemes
+using DifferentialEquations, Plots, LinearAlgebra, Roots, Statistics, Sundials, ColorSchemes, SparseArrays
 @time begin
 # Parameters for computations
 D_c = 1e-3 #0.1#1e-0 #Diffusion Coefficient for Consensus makers
@@ -15,7 +15,7 @@ b=0 #public good benefit
 k=0 #public good cost
 s= 0 #Spillovers
 L = 10 #Length of domain    
-Nx, Ny = 10, 10 #Number of discretization points in either direction
+Nx, Ny = 75, 75 #Number of discretization points in either direction
 dx = L / (Nx - 1) #Chop up x equally
 dy = L / (Ny - 1) #Chop up y equally
 x = range(0, L, length=Nx) # X size
@@ -197,8 +197,8 @@ end
 # Mass matrix: 1 for c,g,z , 0 for v_c,v_g 
 # function mass_matrix(u, p, t)
 # M = diagm(vcat(ones(4*Nx*Ny), zeros(2*Nx*Ny)))
-M = diagm(vcat(ones(6*Nx*Ny)))
-
+# M = diagm(vcat(ones(6*Nx*Ny))) #Used for quick comps
+M = spdiagm(0 => ones(6*Nx*Ny)) #Need to use for large final solutions, takes longer to compute but better for memory
 u0 = pack(c₀, g₀, z1₀, z2₀, v_c₀, v_g₀)
 du0 = zeros(size(u0))
 
@@ -235,53 +235,53 @@ p5 = heatmap(x, y, heatmap_population',  aspect_ratio=1,colorbar=false, clims=cl
 p6 = heatmap(x, y, v',  aspect_ratio=1,color=:viridis, colorbar=false, clims=clims) # clims=climscolor=:balance,
 heatmap_figure = plot(p1, p2, p3, p4, p5, p6, layout=(3,3), size=(1400, 1500),colorbar=true, titlefontsize=fontsize, guidefontsize=fontsize, tickfontsize=fontsize, plot_title="Solutions at final time $tfinal")
 display(plot(p1, axis=false, framestyle=:none,ticks=false, size=(625, 625))) #Consensus makers
-#savefig("-MCaseTEST,Heatmap5_Interesting_ConsensusMakers,Nx=$Nx,Dc=$D_c,M_c=$m_c,lambda=$λ,s=$s,b=$b,k=$k,T=$tfinal.pdf")
+savefig("Heatmap1,_ConsensusMakers,Nx=$Nx,Dc=$D_c,M_c=$m_c,lambda=$λ,s=$s,b=$b,k=$k,T=$tfinal.pdf")
 display(plot(p2, axis=false, framestyle=:none, ticks=false,size=(625, 625))) #Gridlockers
-#savefig("-MCaseTEST,Heatmap5_Interesting_Gridlockers,Nx=$Nx,Dg=$D_g,M_g=$m_g,lambda=$λ,s=$s,b=$b,k=$k,T=$tfinal.pdf")
+savefig("Heatmap1,Gridlockers,Nx=$Nx,Dg=$D_g,M_g=$m_g,lambda=$λ,s=$s,b=$b,k=$k,T=$tfinal.pdf")
 display(plot(p3, axis=false, framestyle=:none, ticks=false,size=(625, 625))) #Zealots of party 1
-#savefig("-MCaseTEST,Heatmap5_Interesting_Zealots1,Nx=$Nx,Dz1=$D_z,M_z1=$m_z,lambda=$λ,s=$s,b=$b,k=$k,T=$tfinal.pdf")
+savefig("Heatmap1,_Zealots1,Nx=$Nx,Dz1=$D_z,M_z1=$m_z,lambda=$λ,s=$s,b=$b,k=$k,T=$tfinal.pdf")
 display(plot(p4, axis=false, framestyle=:none, ticks=false,size=(625, 625))) #Zealots of party 2
-#savefig("-MCaseTEST,Heatmap5_Interesting_Zealots2,Nx=$Nx,Dz2=$D_z2,M_z2=$m_z2,lambda=$λ,s=$s,b=$b,k=$k,T=$tfinal.pdf")
+savefig("Heatmap1,_Zealots2,Nx=$Nx,Dz2=$D_z2,M_z2=$m_z2,lambda=$λ,s=$s,b=$b,k=$k,T=$tfinal.pdf")
 display(plot(p5, axis=false, framestyle=:none, ticks=false,size=(625, 625))) #Population
-#savefig("-MCaseTEST,Heatmap5_Interesting,_Population,Nx=$Nx,Dc=$D_c,M_c=$m_c,lambda=$λ,s=$s,b=$b,k=$k,T=$tfinal.pdf")
+savefig("Heatmap1,_Population,Nx=$Nx,Dc=$D_c,M_c=$m_c,lambda=$λ,s=$s,b=$b,k=$k,T=$tfinal.pdf")
 display(plot(p6, axis=false, framestyle=:none, ticks=false, size=(625,625))) #Vote
-#savefig("-MCaseTEST,Heatmap5_Interesting,_Vote,Nx=$Nx,Dc=$D_c,M_c=$m_c,lambda=$λ,s=$s,b=$b,k=$k,T=$tfinal.pdf")
+savefig("Heatmap1,_Vote,Nx=$Nx,Dc=$D_c,M_c=$m_c,lambda=$λ,s=$s,b=$b,k=$k,T=$tfinal.pdf")
 display(heatmap_figure)#savefig("Heatmap_Clean_DifferentD_EvenIC_Finaltime=$tfinal.pdf")
 
-# TIME SERIES: Compute averages over the domain at each time step
-time_steps = sol.t
-average_c = [mean(unpack(sol[i])[1]) for i in 1:length(time_steps)] #Average Consensus-makers
-average_g = [mean(unpack(sol[i])[2]) for i in 1:length(time_steps)] #Average Gridlockers
-average_z = [mean(unpack(sol[i])[3]) for i in 1:length(time_steps)] #Average Zealots of party 1
-average_z2 = [mean(unpack(sol[i])[4]) for i in 1:length(time_steps)] #Average Zealots of party 2
-average_Fitness_z1 = [mean(Fitness_z1(unpack(sol[i])[5])) for i in 1:length(time_steps)]
-average_Fitness_z2 = [mean(Fitness_z2(unpack(sol[i])[5])) for i in 1:length(time_steps)]
-average_Fitness_c = [mean(Fitness_c(unpack(sol[i])[5])) for i in 1:length(time_steps)]
-average_Fitness_g = [mean(Fitness_g(unpack(sol[i])[5])) for i in 1:length(time_steps)]
-#ts_max_pop = [maximum(unpack(sol[i])[1]) + maximum(unpack(sol[i])[2]) + maximum(unpack(sol[i])[3]) + maximum(unpack(sol[i])[4]) for i in 1:length(time_steps)]
-average_v = [mean(unpack(sol[i])[5]) .* mean(unpack(sol[i])[1])  .+ mean(unpack(sol[i])[2]) .* mean(unpack(sol[i])[6]) .+ mean(unpack(sol[i])[3]) .+ mean(unpack(sol[i])[4]) for i in 1:length(time_steps)]
-# Above computes c*v_c + g*v_g + z at each time step
-# Plot averages
-time_series = plot(time_steps, average_c, xlabel="Time", ylabel="Mean",lw=8, xlabelfontsize=20, ylabelfontsize=20,
-     titlefontsize=12, legendfontsize=12, tickfontsize=16,ylim=(0,1.05), xlim=(0,tfinal), legend=false) #, label="Mean Consensus Makers"
-plot!(time_steps, average_g,lw=8)
-plot!(time_steps, average_z,lw=8)
-plot!(time_steps, average_z2,lw=8)
-plot!(time_steps, average_v,lw=8)
-# plot!(time_steps, average_Fitness_z1,lw=8)
-# plot!(time_steps, average_Fitness_z2,lw=8)
-#plot!(time_steps, ts_max_pop, label="Max Population",lw=3)
-display(time_series)
-savefig("TimeSeries_Large_Dc=$D_c,M_c=$m_c,lambda=$λ,s=$s,b=$b,k=$k,T=$tfinal.pdf")
+# # TIME SERIES: Compute averages over the domain at each time step
+# time_steps = sol.t
+# average_c = [mean(unpack(sol[i])[1]) for i in 1:length(time_steps)] #Average Consensus-makers
+# average_g = [mean(unpack(sol[i])[2]) for i in 1:length(time_steps)] #Average Gridlockers
+# average_z = [mean(unpack(sol[i])[3]) for i in 1:length(time_steps)] #Average Zealots of party 1
+# average_z2 = [mean(unpack(sol[i])[4]) for i in 1:length(time_steps)] #Average Zealots of party 2
+# average_Fitness_z1 = [mean(Fitness_z1(unpack(sol[i])[5])) for i in 1:length(time_steps)]
+# average_Fitness_z2 = [mean(Fitness_z2(unpack(sol[i])[5])) for i in 1:length(time_steps)]
+# average_Fitness_c = [mean(Fitness_c(unpack(sol[i])[5])) for i in 1:length(time_steps)]
+# average_Fitness_g = [mean(Fitness_g(unpack(sol[i])[5])) for i in 1:length(time_steps)]
+# #ts_max_pop = [maximum(unpack(sol[i])[1]) + maximum(unpack(sol[i])[2]) + maximum(unpack(sol[i])[3]) + maximum(unpack(sol[i])[4]) for i in 1:length(time_steps)]
+# average_v = [mean(unpack(sol[i])[5]) .* mean(unpack(sol[i])[1])  .+ mean(unpack(sol[i])[2]) .* mean(unpack(sol[i])[6]) .+ mean(unpack(sol[i])[3]) .+ mean(unpack(sol[i])[4]) for i in 1:length(time_steps)]
+# # Above computes c*v_c + g*v_g + z at each time step
+# # Plot averages
+# time_series = plot(time_steps, average_c, xlabel="Time", ylabel="Mean",lw=8, xlabelfontsize=20, ylabelfontsize=20,
+#      titlefontsize=12, legendfontsize=12, tickfontsize=16,ylim=(0,1.05), xlim=(0,tfinal), legend=false) #, label="Mean Consensus Makers"
+# plot!(time_steps, average_g,lw=8)
+# plot!(time_steps, average_z,lw=8)
+# plot!(time_steps, average_z2,lw=8)
+# plot!(time_steps, average_v,lw=8)
+# # plot!(time_steps, average_Fitness_z1,lw=8)
+# # plot!(time_steps, average_Fitness_z2,lw=8)
+# #plot!(time_steps, ts_max_pop, label="Max Population",lw=3)
+# display(time_series)
+# savefig("TimeSeries_Large_Dc=$D_c,M_c=$m_c,lambda=$λ,s=$s,b=$b,k=$k,T=$tfinal.pdf")
 
-## Time series fitness
-time_series_fit = plot(time_steps, average_Fitness_c, xlabel="Time", ylabel="Mean",lw=8, xlabelfontsize=20, ylabelfontsize=20,
-     titlefontsize=12, legendfontsize=12, tickfontsize=16, label="Mean Consensus Makers Fitness")
-plot!(time_steps, average_Fitness_g,label="Mean Gridlockers Fitness",lw=8)
-plot!(time_steps, average_Fitness_z1,label="Mean Zealots 1 Fitness",lw=8)
-plot!(time_steps, average_Fitness_z2,label="Mean Zealots 2 Fitness",lw=8)
-#plot!(time_steps, ts_max_pop, label="Max Population",lw=3)
-display(time_series_fit)
+# ## Time series fitness
+# time_series_fit = plot(time_steps, average_Fitness_c, xlabel="Time", ylabel="Mean",lw=8, xlabelfontsize=20, ylabelfontsize=20,
+#      titlefontsize=12, legendfontsize=12, tickfontsize=16, label="Mean Consensus Makers Fitness")
+# plot!(time_steps, average_Fitness_g,label="Mean Gridlockers Fitness",lw=8)
+# plot!(time_steps, average_Fitness_z1,label="Mean Zealots 1 Fitness",lw=8)
+# plot!(time_steps, average_Fitness_z2,label="Mean Zealots 2 Fitness",lw=8)
+# #plot!(time_steps, ts_max_pop, label="Max Population",lw=3)
+# display(time_series_fit)
 
 
 
