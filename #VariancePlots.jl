@@ -2,10 +2,11 @@
 using DifferentialEquations, Plots, LinearAlgebra, Roots, Statistics, Sundials, ColorSchemes, SparseArrays
 @time begin
 
-    iter = 50
+    iter = 5
     D_i_array = range(0.001, 0.1, length=iter) #Diffusion coefficient for all types, we can change this around to see what will happen
     averagevar = zeros(iter) #Variance
     maxvar = zeros(iter) #Max variance
+    var_array = zeros(iter) #Array to store variance for each iteration, we can use this to plot the distribution of variances across the domain for different diffusion coefficients
 for i in 1:iter
     local D_i, D_c, D_g, D_z, D_z2, m_c, m_g, m_z, m_z2, V, λ, b, k, s, L, Nx, Ny, dx, dy, x, y, tfinal, X, Y, N, c₀, g₀, z1₀, z2₀, τ, v_0, v_c₀, v_g₀, u0, du0, tspan, sol, c, g, z, z2, v_c, v_g, population, total_population, heatmap_population, v
     
@@ -228,10 +229,11 @@ v = (c .* v_c .+ g .* v_g .+ z) #Compute v at the end
 compute_averagevar = mean(var(v)) #Compute average vote
 maxvar[i]=maximum(var(v)) #Compute max vote variance 
 averagevar[i]=compute_averagevar
+var_array[i]=var(v) 
 end 
 
 averagevar_plot=plot(D_i_array, averagevar, xlabel="Diffusion Coefficient",
- ylabel="Average Variance of Vote",
+ ylabel="Mean Variance of Vote",
  lw=8, xlabelfontsize=20, ylabelfontsize=20, titlefontsize=12,
   legendfontsize=12, tickfontsize=16,
    legend=false)
@@ -243,5 +245,13 @@ maxvar_plot=plot(D_i_array, maxvar, xlabel="Diffusion Coefficient",
   legendfontsize=12, tickfontsize=16,
    legend=false)
 display(maxvar_plot)
+
+log_plot=plot(D_i_array, log.(var_array), xlabel="Diffusion Coefficient",
+ ylabel="Log Vote Variance",
+ lw=8, xlabelfontsize=20, ylabelfontsize=20, titlefontsize=12,
+  legendfontsize=12, tickfontsize=16,
+   legend=false)
+display(log_plot)
+
 
 end #counter
