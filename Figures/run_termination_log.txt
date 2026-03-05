@@ -1,0 +1,19 @@
+Run termination log
+Repository: /Users/jengle/Desktop/Research/VotingDE/Git/Voting_DE_Git
+
+Process info captured before termination:
+- PID: 21953
+- ps snapshot 1: "21953 07-18:58:41 Sat Jan 31 21:05:05 2026"
+- ps snapshot 2 (just before SIGTERM): "21953 07-18:58:52 (julia)"
+
+Actions taken:
+- Sent SIGTERM (kill -15 21953)
+- Process did not exit immediately; then sent SIGKILL (kill -9 21953)
+- Final check shows process no longer present
+
+Termination timestamp (wall clock): Sun Feb  8 16:04:20 EST 2026
+Notes:
+- The "ELAPSED" reported by `ps` was 07-18:58:41 (7 days, 18:58:41) — wall-clock uptime since process start on Sat Jan 31 21:05:05 2026
+- `ps` earlier also showed cumulative CPU TIME of ~8845:33.88 (from previous listing), which is CPU time consumed by the process, not wall-clock time.
+
+If you want, I can: (a) save additional diagnostics (open files, environment), (b) try to capture any output/log files the REPL was writing, or (c) revert termination (can't restart the same REPL process).
